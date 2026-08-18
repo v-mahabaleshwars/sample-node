@@ -1,0 +1,73 @@
+name: Auto-detect version file
+
+on:
+  workflow_dispatch:
+
+jobs:
+  autodetect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build dist
+        run: npm ci && npm run build
+
+      # 1. .node-version is picked up with no inputs at all
+      - run: echo '20.11.1' > .node-version
+      - uses: mahabaleshwars/setup-node@feature/683-version-by-default
+      - name: Assert 20.11.1
+        run: |
+          test "$(node -v)" = "v20.11.1" || { echo "got $(node -v)"; exit 1; }
+
+      # 2. .nvmrc is used when .node-version is absent
+      - run: rm .node-version && echo '18.20.4' > .nvmrc
+      - uses: mahabaleshwars/setup-node@feature/683-version-by-default
+      - name: Assert 18.20.4
+        run: |
+          test "$(node -v)" = "v18.20.4" || { echo "got $(node -v)"; exit 1; }
+
+      # 3. .node-version wins when both exist
+      - run: echo '22.11.0' > .node-version
+      - uses: mahabaleshwars/setup-node@feature/683-version-by-default
+      - name: Assert 22.11.0
+        run: |
+          test "$(node -v)" = "v22.11.0" || { echo "got $(node -v)"; exit 1; }
+
+      # 4. explicit node-version suppresses auto-detection
+      - uses: mahabaleshwars/setup-node@feature/683-version-by-default
+        with:
+          node-version: '20.11.1'
+      - name: Assert explicit input wins
+        run: |
+          test "$(node -v)" = "v20.11.1" || { echo "got $(node -v)"; exit 1; }
+
+  no-version-file:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: npm ci && npm run build
+      - run: rm -f .node-version .nvmrc
+
+      - name: Record preinstalled Node
+        id: before
+        run: echo "version=$(node -v)" >> "$GITHUB_OUTPUT"
+
+      - uses: mahabaleshwars/setup-node@feature/683-version-by-default
+
+      # No file, no inputs -> must not install anything
+      - name: Assert runner Node unchanged
+        run: |
+          test "$(node -v)" = "${{ steps.before.outputs.version }}" \
+            || { echo "unexpectedly installed $(node -v)"; exit 1; }
+
+  before-checkout:
+    runs-on: ubuntu-latest
+    steps:
+      # setup-node before checkout -> empty workspace, must no-op without failing
+      - uses: actions/checkout@v7
+        with:
+          path: action
+      - run: npm ci && npm run build
+        working-directory: action
+      - uses: mahabaleshwars/setup-node@feature/683-version-by-defaultaction
+      - run: node -v
