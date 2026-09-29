@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 env:
-  ACTION_REF:stevelacey/setup-node@version-file-defaults
+  ACTION_REF: stevelacey/setup-node@version-file-defaults
 
 jobs:
   autodetect:
